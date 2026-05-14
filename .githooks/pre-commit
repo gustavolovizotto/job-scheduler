@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# Pre-commit hook for go-job-scheduler
+# Install with: make install-hooks
+
+set -e
+
+# Colors
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+echo -e "${YELLOW}Running pre-commit checks...${NC}"
+
+# Skip if no Go files are staged
+if ! git diff --cached --name-only --diff-filter=ACM | grep -q '\.go$'; then
+  echo -e "${GREEN}✓ No Go files staged, skipping.${NC}"
+  exit 0
+fi
+
+# Format check
+echo -e "${YELLOW}→ Checking gofmt...${NC}"
+UNFORMATTED=$(gofmt -l . 2>/dev/null | grep -v vendor/ || true)
+if [ -n "$UNFORMATTED" ]; then
+  echo -e "${RED}✗ The following files are not formatted:${NC}"
+  echo "$UNFORMATTED"
+  echo -e "${YELLOW}Run 'make fmt' to fix.${NC}"
+  exit 1
+fi
+
+# Lint
+echo -e "${YELLOW}→ Running golangci-lint...${NC}"
+if ! command -v golangci-lint &> /dev/null; then
+  echo -e "${YELLOW}⚠ golangci-lint not found, skipping. Install: https://golangci-lint.run/usage/install/${NC}"
+else
+  make lint
+fi
+
+# Tests
+echo -e "${YELLOW}→ Running unit tests...${NC}"
+make test
+
+echo -e "${GREEN}✓ All pre-commit checks passed${NC}"
